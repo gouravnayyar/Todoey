@@ -11,10 +11,13 @@ import UIKit
 class TodoListViewController: UITableViewController {
 
     var itemArray = [Item]()
+    let dataFilePath = FileManager.default.urls(for: .documentDirectory,
+                                                in: .userDomainMask).first?.appendingPathComponent("Items.plist")
 
-    let defaults = UserDefaults.standard
     override func viewDidLoad() {
         super.viewDidLoad()
+
+        print(dataFilePath!)
 
         let newItem = Item()
         newItem.title = "Find Mike"
@@ -24,9 +27,9 @@ class TodoListViewController: UITableViewController {
         newItem2.title = "Find Hero"
         itemArray.append(newItem2)
 
-        if let items = self.defaults.array(forKey: "ToDoListArray") as? [Item] {
-            itemArray = items
-        }
+        loadItems()
+
+
     }
 
     // MARK - Tableview Datasource method
@@ -52,20 +55,36 @@ class TodoListViewController: UITableViewController {
 
         itemArray[indexPath.row].done = !itemArray[indexPath.row].done
 
-
-        if tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .none
-        } else {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
-        }
-
-
+        saveItems()
         tableView.deselectRow(at: indexPath, animated: true)
         // animate only row
-        tableView.reloadData()
     }
 
     // MARK - Add New Items 
+    fileprivate func saveItems() {
+        let encoder = PropertyListEncoder()
+
+        do {
+            let data = try encoder.encode(itemArray)
+            try data.write(to: dataFilePath!)
+        } catch {
+            print("Error encoding item array, \(error)")
+        }
+
+        tableView.reloadData()
+    }
+
+    func loadItems() {
+        if let data  = try? Data(contentsOf: dataFilePath!) {
+            let decoder = PropertyListDecoder()
+            do {
+                itemArray = try decoder.decode([Item].self, from: data)
+            } catch {
+                print("Error decoding item array, \(error)")
+            }
+        }
+    }
+
     @IBAction func addButtonPressed(_ sender: Any) {
 
         var textField = UITextField()
@@ -80,7 +99,7 @@ class TodoListViewController: UITableViewController {
                 self.itemArray.append(newItem)
             }
 
-            self.defaults.set(self.itemArray, forKey: "ToDoListArray")
+            self.saveItems()
 
             // Should animate the table view (add row with animatio on index path)
             self.tableView.reloadData()
